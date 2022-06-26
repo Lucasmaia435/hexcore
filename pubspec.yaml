@@ -1,6 +1,6 @@
 name: hexcore
 description: A Flutter package which provides an interface to the League of Legends Client API (LCU API) and LCU Socket connection.
-version: 1.0.0
+version: 1.0.1
 
 repository: https://github.com/Lucasmaia435/hexcore
 
