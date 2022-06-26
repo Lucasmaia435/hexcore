@@ -5,20 +5,18 @@ import 'dart:io';
 import 'package:hexcore/src/hexcore_storage.dart';
 
 class HexcoreSocket {
-  final WebSocket _socket;
+  late WebSocket _socket;
 
-  HexcoreSocket(this._socket);
+  HexcoreSocket();
 
-  static Future<HexcoreSocket> connect() async {
+  /// Create the connection with the LCU Socket, using the keys stored by [Hexcore]
+  Future<void> connect() async {
     final storage = await HexcoreStorage.create();
     try {
       final authKey = storage.getLeagueAuth();
       final port = storage.getLeaguePort();
 
-      WebSocket socket =
-          await WebSocket.connect('wss://riot:$authKey@127.0.0.1:$port/');
-
-      return HexcoreSocket(socket);
+      _socket = await WebSocket.connect('wss://riot:$authKey@127.0.0.1:$port/');
     } catch (e) {
       log(
         "Verify if you are connected to League Client before trying to connect to it's socket",
@@ -50,7 +48,8 @@ class HexcoreSocket {
     );
   }
 
+  /// Closes the WebSocket connection with the LCU Socket
   Future<dynamic> close() async {
-    await _socket.close();
+    await _socket.close(WebSocketStatus.normalClosure);
   }
 }

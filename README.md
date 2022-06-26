@@ -5,25 +5,24 @@
 A Flutter package which provides an interface to the League of Legends Client API (LCU API) and LCU Socket connection.
 
 
-
 ## Usage
 
 Use `Hexcore.create` to create a new instance of Hexcore
 
 ```dart
-  Hexcore hexcore = await Hexcore.create();
+Hexcore hexcore = await Hexcore.create();
 
-  await hexcore.connectToClient();
+await hexcore.connectToClient();
 ```
 At the moment that Hexcore connect to the client, it will watch the League Client state. If the player closes the client, the package will wait until the player reopen it.
 
-Hexcore have three states:
+Hexcore has three states:
 
-1. `searchingClientPath`: When Hexcore is searching for ther League Client path at the player's PC.
-2. `waiting`: Hexcore already found the League Client Path, and now is waiting for the player to open the game or connecting to it.
-3. `connected`: Hexcore is connected and ready to work.
+1. `searchingClientPath`: When Hexcore is searching for the League Client path at the player's PC.
+2. `waiting`: Hexcore already found the League Client Path, and now is waiting for the player to open the game or trying to connect to it.
+3. `connected`: Hexcore is connected and ready to go.
 
-Hexcore have a `ValueNotifier` that notifies about the state of the connection, so you can use an AnimatedContainer to build according to it's state.
+Hexcore has a `ValueNotifier` that notifies about the state of the connection, so you can use an AnimatedContainer to build according to it's state.
 
 ```dart
 ...
@@ -69,7 +68,7 @@ await hexcore.createCustomMatch(
 
 List all the available custom matches, so you can get the information you need to [join a match](#join-custom-match).
 ```dart
-var matches = await hexcore.listCustomMatches();
+List<Map<String,dynamic>> matches = await hexcore.listCustomMatches();
 ```
 
 ### Join custom match
@@ -88,12 +87,14 @@ await hexcore.joinCustomMatch(
 
 In this package you can also find an interface for the LCU Socket connection, where you can subscribe and listen to events emitted by LCU.
 
-Use `HexcoreSocket.connect` to create a new instance and connection.
+Create an instance and use `HexcoreSocket.connect` to connect.
 
 ❗ You need to connect to the LCU using `Hexcore.connectToClient` before trying the socket connection. ❗
 
 ```dart
-  HexcoreSocket hexcoreSocket = await HexcoreSocket.connect();
+HexcoreSocket hexcoreSocket = HexcoreSocket();
+
+await hexcoreSocket.connect();
 ```
 
 ### Subscribing to LCU Events.
@@ -107,7 +108,7 @@ In this example you subscribe to all LCU Events. [Here](https://hextechdocs.dev/
 
 ### Handling Events
 
-Use `listen` method to create a `StreamSubscription` to handle the events that have been subscribed.
+Use `listen` method to create a `StreamSubscription` to handle the events that has been subscribed.
 
 ```dart
 hexcoreSocket.listen((event){

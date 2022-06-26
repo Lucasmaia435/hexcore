@@ -8,58 +8,78 @@ import 'package:hexcore/src/hexcore_storage.dart';
 import 'package:hexcore/src/utils/lockfile_utils.dart';
 
 class Hexcore {
+  /// [HexcoreStorage] store all the needed data from the League client, such as, it's path and connection needed keys.
   final HexcoreStorage _storage;
+
+  /// [HexcoreClient] instance that handles all the REST calls to League client.
   final HexcoreClient _client;
 
+  /// Called when the [Hexcore] get connected to the League Client.
   void Function()? onConnect;
+
+  /// Called when the [Hexcore] disconnect from the League Client or when the client is closed.
   void Function()? onDisconnect;
+
+  /// Called when the [Hexcore] is trying to connect to the League Client.
   void Function()? onWaiting;
 
-  ValueNotifier<HexcoreStatus> status =
-      ValueNotifier<HexcoreStatus>(HexcoreStatus.waiting);
+  /// Notify the current [HexcoreState] of the application
+  ValueNotifier<HexcoreState> state =
+      ValueNotifier<HexcoreState>(HexcoreState.initial);
 
-  StreamSubscription<FileSystemEvent>? watchDirectory;
-  Hexcore(
+  /// Watch the directory to know when the player reopens the League Client after connecting the first time
+  StreamSubscription<FileSystemEvent>? _watchDirectory;
+
+  Hexcore._create(
     this._client,
     this._storage,
   );
 
+  /// Async constructor for [Hexcore], where it creates an private [HexcoreStorage] and [HexcoreClient] instances that are needed by [Hexcore]
   static Future<Hexcore> create() async {
     HexcoreStorage storage = await HexcoreStorage.create();
     HexcoreClient client = await HexcoreClient.create(storage: storage);
 
-    return Hexcore(
+    return Hexcore._create(
       client,
       storage,
     );
   }
 
+  /// Dispose and/or cancel all the listeners, clients and streams in the [Hexcore] instance
   Future<void> close() async {
-    status.dispose();
+    state.dispose();
     _client.close();
-    await watchDirectory?.cancel();
+    await _watchDirectory?.cancel();
   }
 
-  void _updateStatus(HexcoreStatus status) {
-    this.status.value = status;
-    switch (status) {
-      case HexcoreStatus.connected:
+  void _updateState(HexcoreState state) {
+    this.state.value = state;
+    switch (state) {
+      case HexcoreState.connected:
         onConnect?.call();
         break;
-      case HexcoreStatus.waiting:
-        print('Procurando');
+      case HexcoreState.waiting:
         onWaiting?.call();
         break;
-
-      case HexcoreStatus.searchingClientPath:
+      case HexcoreState.searchingClientPath:
         break;
       default:
         break;
     }
   }
 
+  /// Try to connect to League Client.
+  ///
+  /// [Hexcore] will store the path of the player's client to make it easier and quicker to connected again.
+  ///
+  /// If [Hexcore] never connected before, it will search for the League Client path.
+  ///
+  /// If [Hexcore] has been connected once, it will watch the directory waiting for League Client to be open.
+  ///
+  /// Also [Hexcore] listen to the Client state, if the clients get closed [Hexcore] will change its state and starts to wait for the client to reopen.
   Future<void> connectToClient() async {
-    _updateStatus(HexcoreStatus.waiting);
+    _updateState(HexcoreState.waiting);
 
     if (_storage.hasLeaguePath()) {
       Directory leagueDirectory = Directory(_storage.getLeaguePath());
@@ -80,7 +100,7 @@ class Hexcore {
         Map<String, dynamic> lockFileContent = readLockFile(file);
 
         await _client.updateWithLockfile(lockFileContent);
-        _updateStatus(HexcoreStatus.connected);
+        _updateState(HexcoreState.connected);
 
         _listenToClientDirectoryAfterLeagueClose();
       } else {
@@ -93,7 +113,7 @@ class Hexcore {
   }
 
   Future<void> _findLeaguePath() async {
-    _updateStatus(HexcoreStatus.searchingClientPath);
+    _updateState(HexcoreState.searchingClientPath);
     bool keepProcess = true;
     while (keepProcess) {
       if (Platform.isWindows) {
@@ -128,7 +148,7 @@ class Hexcore {
         Map<String, dynamic> lockFileContent = readLockFile(file);
 
         await _client.updateWithLockfile(lockFileContent);
-        _updateStatus(HexcoreStatus.connected);
+        _updateState(HexcoreState.connected);
 
         break;
       }
@@ -139,20 +159,24 @@ class Hexcore {
       _listenToClientDirectoryAfterLeagueClose() {
     Directory leagueDirectory = Directory(_storage.getLeaguePath());
     String validatorPath = '${_storage.getLeaguePath()}\\lockfile';
-    watchDirectory = leagueDirectory.watch().listen((event) {
+    _watchDirectory = leagueDirectory.watch().listen((event) {
       if (event is FileSystemDeleteEvent && event.path == validatorPath) {
         onDisconnect?.call();
         connectToClient();
       }
     });
-    return watchDirectory;
+    return _watchDirectory;
   }
 
+  /// Send a custom notification to League Client. Make a REST request to league's client showing a notification.
+  /// Show a notification at league client with [title], [details] and a background given by [backgroundUrl], [backgroundUrl] can be null. After a feel seconds this notification will disapear.
+  ///
+  /// The sended notification will be added to the notification list at client, in that list you will be able to see the [title], [details] and an image, given by [iconUrl].
   Future<void> sendCustomNotification({
     String? backgroundUrl,
     String? iconUrl,
-    String? title,
-    String? details,
+    required String title,
+    required String details,
   }) async {
     await _client.request(
       'POST',
@@ -169,6 +193,9 @@ class Hexcore {
     );
   }
 
+  /// Create a custom lobby by its [lobbyName], and if its passed and [lobbyPassword].
+  ///
+  /// The current player will be redirect to the custom lobby after the creation.
   Future<void> createCustomMatch(
       {required String lobbyName, String? lobbyPassword}) async {
     await _client.request('POST', '/lol-lobby/v2/lobby', body: {
@@ -189,12 +216,16 @@ class Hexcore {
     });
   }
 
-  Future<void> listCustomMatches() async {
+  /// List all the custom lobbys presents in the client.
+  Future<List<Map<String, dynamic>>> listCustomMatches() async {
     var response = await _client.request('GET', '/lol-lobby/v1/custom-games');
 
     return response;
   }
 
+  /// Join a custom lobby by a given [id], if the lobby needs a password, you can pass it through [password].
+  ///
+  /// You can get the [id] of an lobby at the [listCustomMatches]'s response.
   Future<void> joinCustomMatch({
     required String id,
     String? password,
@@ -210,7 +241,9 @@ class Hexcore {
   }
 }
 
-enum HexcoreStatus {
+/// Enum used to describe the state of the [Hexcore] connecion to League Client
+enum HexcoreState {
+  initial,
   connected,
   waiting,
   searchingClientPath,
