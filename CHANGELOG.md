@@ -1,3 +1,10 @@
+## 1.0.1
+
+- Documentation Fixes
+    * Added documentation to all methods at Hexcore and HexcoreSocket
+- Example created
+    * Working example
+
 ## 1.0.0
 
 - Initial version.
