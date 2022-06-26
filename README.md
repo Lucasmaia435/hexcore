@@ -18,6 +18,7 @@ At the moment that Hexcore connect to the client, it will watch the League Clien
 
 Hexcore has three states:
 
+1. `initial`: When the instance of Hexcore is created.
 1. `searchingClientPath`: When Hexcore is searching for the League Client path at the player's PC.
 2. `waiting`: Hexcore already found the League Client Path, and now is waiting for the player to open the game or trying to connect to it.
 3. `connected`: Hexcore is connected and ready to go.
