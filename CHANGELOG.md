@@ -1,3 +1,8 @@
+## 1.0.2
+
+- Documentation Fixes
+    * Added Github link
+
 ## 1.0.1
 
 - Documentation Fixes
